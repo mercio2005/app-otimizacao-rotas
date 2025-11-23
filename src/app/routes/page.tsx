@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Package, Truck, Navigation, Plus, Trash2, Sparkles } from 'lucide-react';
+import { MapPin, Package, Truck, Navigation, Plus, Trash2, Sparkles, LogOut, AlertCircle } from 'lucide-react';
 import { Address } from '@/lib/types';
 import { geocodeAddress } from '@/lib/geocoding';
 import { optimizeRoute, saveRouteToStorage } from '@/lib/route-optimizer';
+import { useAuth } from '@/hooks/useAuth';
+import { SubscriptionChecker } from '@/components/SubscriptionChecker';
 
 export default function RoutesPage() {
   const router = useRouter();
+  const { user, loading: authLoading, subscriptionStatus, logout } = useAuth();
+  
   const [startAddress, setStartAddress] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [pickupAddress, setPickupAddress] = useState('');
@@ -20,6 +24,13 @@ export default function RoutesPage() {
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState('');
+
+  // Verificar autenticação
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const handleAddStart = async () => {
     if (!startAddress.trim()) {
@@ -126,7 +137,6 @@ export default function RoutesPage() {
     setError('');
 
     try {
-      // Otimizar rota (pode usar SerpAPI se configurado)
       const optimized = await optimizeRoute(startPoint, deliveries, pickups);
       saveRouteToStorage(optimized);
       router.push('/optimized');
@@ -146,8 +156,19 @@ export default function RoutesPage() {
     setPickups(pickups.filter(p => p.id !== id));
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      {/* Subscription Checker - Popup automático quando expirar */}
+      <SubscriptionChecker />
+
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -155,6 +176,17 @@ export default function RoutesPage() {
       </div>
       
       <div className="container mx-auto px-4 py-8 max-w-6xl relative z-10">
+        {/* Header with Logout */}
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 text-slate-300 rounded-xl hover:bg-slate-600/50 transition-all duration-300"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair
+          </button>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-12 animate-fadeIn">
           <div className="flex items-center justify-center gap-3 mb-4">
